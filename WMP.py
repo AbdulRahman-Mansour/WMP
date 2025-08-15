@@ -2,7 +2,7 @@ import requests
 import pandas as pd
 import json
 from bs4 import BeautifulSoup
-
+ 
 class ERPNext:
     
     DATATABLES = [
@@ -139,6 +139,14 @@ class ERPNext:
     def __fields_func(fields): 
         return f"""["{'","'.join([i for i in fields])}"]"""
 
+    def data_endpoint(self, base_url, doctype): 
+        return f"{base_url}/api/resource/{doctype}"
+
+
+    def child_data_endpoint(self, base_url, doctype, parent_id):
+        return f"{base_url}/api/resource/{doctype}/{parent_id}"
+
+
     def get_available_datatables(self):
         return [i['doctype'] for i in ERPNext.DATATABLES]
     
@@ -155,7 +163,7 @@ class ERPNext:
             return
             
         if datatable.get('parent_doctype') == None:
-            data_response = requests.get(data_endpoint(self.base_url, datatable['doctype']), params=datatable['params'], headers=headers)
+            data_response = requests.get(self.data_endpoint(self.base_url, datatable['doctype']), params=datatable['params'], headers=headers)
             
             # Check response
             if data_response.status_code == 200:
@@ -170,11 +178,11 @@ class ERPNext:
             parent_params = parent_datatable['params'].copy()
             parent_params.pop('fields',None)
             
-            parent_response = requests.get(data_endpoint(self.base_url, parent_datatable['doctype']), params=parent_params, headers=headers)
+            parent_response = requests.get(self.data_endpoint(self.base_url, parent_datatable['doctype']), params=parent_params, headers=headers)
             child_responses = []
             for parent_name in parent_response.json()['data']:
                 parent_id = parent_name['name']
-                response = requests.get(child_data_endpoint(self.base_url, datatable['parent_doctype'], parent_id), params=datatable['params'], headers=headers)
+                response = requests.get(self.child_data_endpoint(self.base_url, datatable['parent_doctype'], parent_id), params=datatable['params'], headers=headers)
                 if response.status_code == 200:
                     child_responses.append(pd.DataFrame(response.json()['data'][datatable['doctype']]))
                 else:
