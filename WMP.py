@@ -10,7 +10,7 @@ class ERPNext:
             "doctype": "GL Entry",
             "params":
             {
-                "fields" :fields_func([ 
+                "fields" :json.dumps([ 
                     "name", "creation", "modified", "modified_by", "owner", "docstatus", "idx", "posting_date", "transaction_date", "account", "party_type",
                     "party", "cost_center", "debit", "credit", 
                     # "account_currency", "debit_in_account_currency", "credit_in_account_currency", 
