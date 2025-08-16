@@ -2,11 +2,27 @@ import requests
 import pandas as pd
 import json
 from bs4 import BeautifulSoup
- 
+import time
+pd.set_option("display.max_columns",None)
+
+
+
+
+def timer(func):
+    def wrapper(*args, **kwargs):
+        start = time.time()
+        result = func(*args, **kwargs)
+        end = time.time()
+        print(f"{func.__name__} took {end - start:.4f} seconds")
+        return result
+    return wrapper
+
+
+    
 class ERPNext:
     
-    DATATABLES = [
-        {
+    DATATABLES = {
+        "GL Entry": {
             "doctype": "GL Entry",
             "params":
             {
@@ -25,7 +41,7 @@ class ERPNext:
                 "limit_page_length": "None"
             }
         },
-        {
+        "Purchase Invoice": {
             "doctype": "Purchase Invoice",
             "params":
             {
@@ -59,7 +75,7 @@ class ERPNext:
                 "limit_page_length": "None"
             }
         },
-        {
+        "Account": {
             "doctype": "Account",
             "params":
             {
@@ -73,7 +89,7 @@ class ERPNext:
                 "limit_page_length": "None"
             }
         },
-        {
+        "Cost Center": {
             "doctype": "Cost Center",
             "params":
             {
@@ -86,7 +102,7 @@ class ERPNext:
                 "limit_page_length": "None"
             }
         },
-        {
+        "Purchase Invoice Item": {
             "doctype": "items",
             "parent_doctype": "Purchase Invoice",
             "params":
@@ -95,7 +111,7 @@ class ERPNext:
                 "limit_page_length": "None"
             }
         },
-        {
+        "Payment Entry": {
             "doctype": "Payment Entry",
             "params":
             {
@@ -112,11 +128,61 @@ class ERPNext:
                     "cost_center", "status", "custom_remarks", "remarks", "base_in_words", "letter_head", "print_heading", "bank", "bank_account_no",
                     "payment_order", "in_words", "auto_repeat", "amended_from", "title", "_user_tags", "_comments", "_assign", "_liked_by",
                 ]),
+                "filters": '[["status", "NOT IN", ["Cancelled", "Draft"]]]',
+                "limit_page_length": "None"
+            }
+        },
+        "Sales Invoice": {
+            "doctype": "Sales Invoice",
+            "params":
+            {
+                "fields" :json.dumps([
+                    "name", "creation", "modified", "modified_by", "owner", "docstatus", "idx", "title", "naming_series", "customer", "customer_name", "tax_id",
+                    "company", "company_tax_id", "posting_date", "posting_time", "set_posting_time", "due_date", "is_pos", "pos_profile", "is_consolidated",
+                    "is_return", "return_against", "update_outstanding_for_self", "update_billed_amount_in_sales_order", "update_billed_amount_in_delivery_note",
+                    "is_debit_note", "amended_from", "cost_center", "project", "currency", "conversion_rate", "selling_price_list", "price_list_currency", 
+                    "plc_conversion_rate", "ignore_pricing_rule", "scan_barcode", "update_stock", "set_warehouse", "set_target_warehouse", "total_qty", 
+                    "total_net_weight", "base_total", "base_net_total", "total", "net_total", "tax_category", "taxes_and_charges", "shipping_rule", "incoterm",
+                    "named_place", "base_total_taxes_and_charges", "total_taxes_and_charges", "base_grand_total", "base_rounding_adjustment", 
+                    "base_rounded_total", "base_in_words", "grand_total", "rounding_adjustment", "use_company_roundoff_cost_center", "rounded_total", "in_words",
+                    "total_advance", "outstanding_amount", "disable_rounded_total", "apply_discount_on", "base_discount_amount", "is_cash_or_non_trade_discount",
+                    "additional_discount_account", "additional_discount_percentage", "discount_amount", "other_charges_calculation", "total_billing_hours",
+                    "total_billing_amount", "cash_bank_account", "base_paid_amount", "paid_amount", "base_change_amount", "change_amount",
+                    "account_for_change_amount", "allocate_advances_automatically", "only_include_allocated_payments", "write_off_amount",
+                    "base_write_off_amount", "write_off_outstanding_amount_automatically", "write_off_account", "write_off_cost_center", "redeem_loyalty_points",
+                    "loyalty_points", "loyalty_amount", "loyalty_program", "loyalty_redemption_account", "loyalty_redemption_cost_center", "customer_address",
+                    "address_display", "contact_person", "contact_display", "contact_mobile", "contact_email", "territory", "shipping_address_name",
+                    "shipping_address", "dispatch_address_name", "dispatch_address", "company_address", "company_address_display", 
+                    "ignore_default_payment_terms_template", "payment_terms_template", "tc_name", "terms", "po_no", "po_date", "debit_to", 
+                    "party_account_currency", "is_opening", "unrealized_profit_loss_account", "against_income_account", "sales_partner",
+                    "amount_eligible_for_commission", "commission_rate", "total_commission", "letter_head", "group_same_items", "select_print_heading", "language",
+                    "subscription", "from_date", "auto_repeat", "to_date", "status", "inter_company_invoice_reference", "campaign", "represents_company", "source",
+                    "customer_group", "is_internal_customer", "is_discounted", "remarks", 
+                    # "repost_required",
+                    "_user_tags", "_comments", "_assign", "_liked_by",
+                    # "_see",
+                ]),
                 "filters": '',
                 "limit_page_length": "None"
             }
         },
-    ]
+        "Sales Invoice Item": {
+            "doctype": "items",
+            "parent_doctype": "Sales Invoice",
+            "params":
+            {
+                "limit_page_length": "None"
+            }
+        },
+        "Payment Entry Reference": {
+            "doctype": "references",
+            "parent_doctype": "Payment Entry",
+            "params":
+            {
+                "limit_page_length": "None"
+            }
+        },
+    }
     
     def __init__(self, base_url, auth):
         
@@ -148,17 +214,15 @@ class ERPNext:
 
 
     def get_available_datatables(self):
-        return [i['doctype'] for i in ERPNext.DATATABLES]
+        return list(ERPNext.DATATABLES.keys())
     
     def __read_datatable(self, doctype, headers="default"):
 
         headers = self.headers if headers=='default' else headers
         
-        datatable = [i for i in ERPNext.DATATABLES if i['doctype']==doctype]
+        datatable = ERPNext.DATATABLES.get(doctype)
         
-        if len(datatable)>0:
-            datatable = datatable[0]
-        else:
+        if datatable is None:
             print(f"Error: ({doctype}) doesn't exist.")
             return
             
@@ -168,13 +232,17 @@ class ERPNext:
             # Check response
             if data_response.status_code == 200:
                 df = pd.DataFrame(data_response.json()['data'])
-                self.data[datatable['doctype']] = df
-                return df
+                self.data[doctype] = df
+                return {datatable['doctype']: df}
             else:
                 print(f"Error: ({datatable['doctype']})", data_response.status_code, data_response.text)
         
         else:
-            parent_datatable = [i for i in ERPNext.DATATABLES if i['doctype']==datatable['parent_doctype']][0]
+            parent_datatable = ERPNext.DATATABLES.get(datatable['parent_doctype']) #[i for i in ERPNext.DATATABLES if i['doctype']==datatable['parent_doctype']][0]
+            if parent_datatable is None:
+                print(f"Error: ({datatable['doctype']}) Failed to get parent data")
+                return
+                
             parent_params = parent_datatable['params'].copy()
             parent_params.pop('fields',None)
             
@@ -186,28 +254,29 @@ class ERPNext:
                 if response.status_code == 200:
                     child_responses.append(pd.DataFrame(response.json()['data'][datatable['doctype']]))
                 else:
-                    print(f"Error: ({datatable['doctype']}/{parent_name})", data_response.status_code, data_response.text)
+                    print(f"Error: ({doctype})", data_response.status_code, data_response.text)
              
             if len(child_responses)>0:
                 df = pd.concat(child_responses)
-                self.data[f"{datatable['doctype']}"] = df
-                return df
+                self.data[doctype] = df
+                return {doctype: df}
         
-
+    @timer
     def read_datatables(self, doctypes='all'):
         if doctypes == 'all':
             doctypes = self.get_available_datatables()
+
+        doctypes = doctypes if isinstance(doctypes, list) else [doctypes]
         
-        if isinstance(doctypes, list):
-            data = dict()    
-            for doctype in doctypes:
-                _ = self.__read_datatable(doctype)
-                if _ is not None:
-                    data[doctype] = _
+        data = dict()    
+        for doctype in doctypes:
+            _ = self.__read_datatable(doctype)
+            if _ is not None:
+                data.update(_)
+        if len(data.keys())>0:
             self.data.update(data)
-            return data
-        else:
-            return self.__read_datatable(doctypes)
+            return data if len(data.keys())>1 else data[list(data.keys())[0]]
+
 
 
     def prep_data(self, df, doctype):
@@ -221,6 +290,49 @@ class ERPNext:
         if doctype == 'Purchase Invoice':
             def quality_check():
                 pass
+                # Accounts codes distribution
+                # dfs['Account'].assign(acc_type = lambda x: x['account_number'].str[0])\
+                # .groupby('acc_type')['root_type'].value_counts()
+
+                # PINVI Purchase Orders !!!!
+                # dfs['Purchase Invoice Item'][lambda x: ~x['po_detail'].isna()][pinvi_columns]
+
+
+                # PINV
+                    # Invoince with total of zero
+                    # dfs['Purchase Invoice'][lambda x : x['grand_total']==0][pinv_coulms]
+
+                    # Returned Invoices with no return_against
+                    # dfs['Purchase Invoice'][lambda x: x['status'].isin(['Return'])][lambda x: x['return_against'].str.len() < 2]
+
+                # Accounting Error Detection
+                    # 1. A return Purchase Invoice with no Return Against shoult always equal 0
+                    
+                    
+                    # 1. Shouldn't purchases relate to a cost center?
+                    
+                    #             cost_center	
+                    # count	    275	
+                    # unique	    3
+                    # top	        Main - روائع
+                    # freq	    266
+                    
+                    # 2. Some invoices doesn't have vat (total_taxes_and_charges)
+                    # 3. Some invoice have grand total of zero (ACC-PINV-2025-00096-1)
+
+                # PAY
+                    # Difference between amoutn columns
+                    # dfs['Payment Entry'][
+                    #     lambda x:
+                    #     (
+                    #         x['base_paid_amount']- \
+                    #         x['base_paid_amount_after_tax']-\
+                    #         x['received_amount']-\
+                    #         x['received_amount_after_tax']+ \
+                    #         x['base_received_amount']+\
+                    #         x['base_received_amount_after_tax']
+                    #     ) != 0
+                    # ][pay_columns]
 
             pinv_columns = \
             [
@@ -239,10 +351,54 @@ class ERPNext:
             
             return df
 
-        elif doctype == 'Payment Entry':
-            pinv_columns = \
-            [
-                'name', 'item_code', 'item_name', 'description', 'item_group', 'qty', 'uom', 'amount', 'expense_account', 'is_fixed_asset',
-                'asset_category', 'cost_center', 'parent', 'purchase_order', 'po_detail'
+            
+        elif doctype == 'Purchase Invoice Item':
+            pinvi_columns = [
+                'name','item_code','item_name','description','item_group','qty','uom','amount','expense_account',
+                'is_fixed_asset','asset_category','cost_center','parent','purchase_order','po_detail'
             ]
-            return df[pinv_columns]
+            
+            # Fixing description column
+            df["description"] = df["description"].apply(
+                lambda x: BeautifulSoup(x, "html.parser").get_text(" ", strip=True)
+            )
+
+            # The naming for some item equals the code, for those specific entries replace the name with the description
+            df.loc[lambda x: x['item_code']==x['item_name'], 'item_name'] = df.loc[lambda x: x['item_code']==x['item_name'], 'description']
+            return df[pinvi_columns]
+
+        elif doctype == 'Payment Entry':
+            # pay_columns = \÷
+            pay_columns = [
+                'name', 'creation', 'modified', 'modified_by', 'owner', 'payment_type', 'posting_date', 'mode_of_payment', 'party_type', 'party', 'party_name',
+                'paid_from', 'paid_from_account_type', 'paid_from_account_balance', 'paid_to', 'paid_to_account_type', 'paid_to_account_balance', 'paid_amount',
+                'received_amount', 'reference_no', 'reference_date', 'cost_center', 'status', 'custom_remarks' , 'remarks', 'remarks',
+                # 'base_paid_amount',
+                # 'base_paid_amount_after_tax',
+                # 'received_amount',
+                # 'received_amount_after_tax',
+                # 'base_received_amount',
+                # 'base_received_amount_after_tax',
+                # 'total_allocated_amount',
+                # 'base_total_allocated_amount',
+            ]
+            return df[pay_columns]
+
+        elif doctype == 'GL Entry':
+            gl_columns = [
+                'posting_date', 'debit', 'credit', 'account', 'against', 'voucher_no', 'against_voucher', 'voucher_type', 'against_voucher_type',
+                'party_type', 'party', 'cost_center', 'remarks',
+            ]
+            return df[gl_columns]
+
+        elif doctype == 'Payment Entry Reference':
+            payr_columns = ['name', 'reference_doctype', 'reference_name', 'allocated_amount', 'parent']
+            
+            return df[payr_columns].rename(
+                {
+                    'parent': 'payment_no',
+                    'reference_name': 'invoice_no',
+                    'reference_doctype': 'invoice_type',
+                    'allocated_amount': 'amount'
+                }, axis = 1
+            )
