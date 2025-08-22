@@ -3,6 +3,11 @@ import pandas as pd
 import json
 from bs4 import BeautifulSoup
 import time
+import gspread
+from gspread_dataframe import set_with_dataframe, get_as_dataframe
+from google.oauth2.service_account import Credentials
+
+
 pd.set_option("display.max_columns",None)
 
 
@@ -402,3 +407,65 @@ class ERPNext:
                     'allocated_amount': 'amount'
                 }, axis = 1
             )
+        else:
+            return df
+
+
+    def prep_dfs(self, dfs):
+        dfs_prep = dict()
+        
+        for doctype, df in dfs.items():
+            dfs_prep[doctype] = en.prep_data(df, doctype)
+
+        return dfs_prep
+
+        
+    
+    def export_dataframes_to_gsheet(self, dfs, spreadsheet_id, mode='overwrite'):
+        """
+        Export a dictionary of DataFrames to an existing Google Sheet.
+    
+        Parameters:
+        dfs (dict): {sheet_name: dataframe}
+        spreadsheet_id (str): The ID of the Google Sheet
+        mode (str): 'overwrite' to replace existing sheet content, 'append' to add after existing rows
+        """
+        # Authenticate
+    
+        token = "shopal-299823-30fe44932863.json"
+        creds = Credentials.from_service_account_file(
+            token,
+            scopes=["https://www.googleapis.com/auth/spreadsheets"]
+        )
+        client = gspread.authorize(creds)
+    
+        # Open spreadsheet
+        sh = client.open_by_key(spreadsheet_id)
+    
+        for sheet_name, df in dfs.items():
+            try:
+                # Try to open existing sheet
+                worksheet = sh.worksheet(sheet_name)
+                print(f"Sheet '{sheet_name}' exists.")
+    
+                if mode == 'overwrite':
+                    worksheet.clear()
+                    set_with_dataframe(worksheet, df)
+                    print(f"Overwritten '{sheet_name}'.")
+                
+                elif mode == 'append':
+                    existing_df = get_as_dataframe(worksheet, evaluate_formulas=True).dropna(how="all")
+                    start_row = len(existing_df) + 1
+                    set_with_dataframe(worksheet, df, row=start_row, include_column_header=False)
+                    print(f"Appended {len(df)} rows to '{sheet_name}'.")
+                
+                else:
+                    raise ValueError("Mode must be 'overwrite' or 'append'.")
+    
+            except gspread.exceptions.WorksheetNotFound:
+                # Create new sheet if it doesn't exist
+                print(f"Creating new sheet '{sheet_name}'.")
+                sh.add_worksheet(title=sheet_name, rows=str(len(df) + 10), cols=str(len(df.columns) + 10))
+                worksheet = sh.worksheet(sheet_name)
+                set_with_dataframe(worksheet, df)
+                print(f"Created and wrote data to '{sheet_name}'.")
