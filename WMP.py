@@ -412,7 +412,7 @@ class ERPNext:
             pinv_columns = \
             [
                 'name', 'title', 'customer', 'customer_name', 'posting_date', 'posting_time', 'due_date','return_against', 'cost_center', 'total_qty', 'tax_category'
-                , 'total_taxes_and_charges', 'grand_total', 'discount_amount', 'customer_address', 'status',
+                , 'total_taxes_and_charges', 'grand_total', 'discount_amount', 'customer_address', 'status'
                 ,'customer_group'
                 , 'remarks'
             ]
