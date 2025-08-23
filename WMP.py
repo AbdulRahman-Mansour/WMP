@@ -407,6 +407,41 @@ class ERPNext:
                     'allocated_amount': 'amount'
                 }, axis = 1
             )
+
+        elif doctype == 'Sales Invoice':
+            pinv_columns = \
+            [
+                'name', 'title', 'customer', 'customer_name', 'posting_date', 'posting_time', 'due_date','return_against', 'cost_center', 'total_qty', 'tax_category'
+                , 'total_taxes_and_charges', 'grand_total', 'discount_amount', 'customer_address', 'status',
+                ,'customer_group'
+                , 'remarks'
+            ]
+            
+            df = df[pinv_columns].copy()
+            
+            df = df.rename({
+                'credit_to':'credit_account',
+                'against_expense_account':'debit_account'
+            }, axis=1)
+            
+            return df
+
+            
+        elif doctype == 'Sales Invoice Item':
+            pinvi_columns = [
+                'name','item_code','item_name','description','item_group','qty','uom','amount','expense_account', 'income_account',
+                'cost_center','parent'
+            ]
+            
+            # Fixing description column
+            df["description"] = df["description"].apply(
+                lambda x: BeautifulSoup(x, "html.parser").get_text(" ", strip=True)
+            )
+
+            # The naming for some item equals the code, for those specific entries replace the name with the description
+            df.loc[lambda x: x['item_code']==x['item_name'], 'item_name'] = df.loc[lambda x: x['item_code']==x['item_name'], 'description']
+            return df[pinvi_columns]
+
         else:
             return df
 
