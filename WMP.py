@@ -167,7 +167,7 @@ class ERPNext:
                     "_user_tags", "_comments", "_assign", "_liked_by",
                     # "_see",
                 ]),
-                "filters": '[["is_cancelled", "!=", 1]]',
+                "filters": '[["status", "!=", "Cancelled"]]',
                 "limit_page_length": "None"
             }
         },
