@@ -360,7 +360,7 @@ class ERPNext:
         elif doctype == 'Purchase Invoice Item':
             pinvi_columns = [
                 'name','item_code','item_name','description','item_group','qty','uom','amount','expense_account',
-                'is_fixed_asset','asset_category','cost_center','parent','purchase_order','po_detail'
+                'is_fixed_asset','asset_category','cost_center','parent', #'purchase_order','po_detail'
             ]
             
             # Fixing description column
